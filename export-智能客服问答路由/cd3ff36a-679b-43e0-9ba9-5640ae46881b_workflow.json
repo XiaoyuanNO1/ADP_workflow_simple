@@ -1,0 +1,281 @@
+{
+  "ProtoVersion": "V2_6",
+  "WorkflowID": "cd3ff36a-679b-43e0-9ba9-5640ae46881b",
+  "WorkflowName": "智能客服问答路由",
+  "WorkflowDesc": "基于知识库的智能客服系统，支持三层处理：知识库问答、深度分析、人工兜底",
+  "Nodes": [
+    {
+      "NodeID": "af0f4d9a-2e56-4cfa-86da-f6f00037917d",
+      "NodeName": "开始",
+      "NodeDesc": "工作流开始节点",
+      "NodeType": "START",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Name": "user_query",
+          "Type": "STRING",
+          "Desc": "用户输入的问题"
+        }
+      ],
+      "NextNodeIDs": [
+        "3ba63af2-c5d7-41f3-83f1-90cf45b15531"
+      ],
+      "NodeUI": "{\"position\":{\"x\":100,\"y\":200}}",
+      "StartNodeData": {
+        "WorkflowParams": []
+      }
+    },
+    {
+      "NodeID": "3ba63af2-c5d7-41f3-83f1-90cf45b15531",
+      "NodeName": "知识库问答",
+      "NodeDesc": "从知识库中检索答案",
+      "NodeType": "LLM_KNOWLEDGE_QA",
+      "Inputs": [
+        {
+          "Name": "question",
+          "Type": "STRING",
+          "Input": {
+            "InputType": "SYSTEM_VARIABLE",
+            "SystemVariable": {
+              "Name": "SYS.UserQuery",
+              "DialogHistoryLimit": 15
+            }
+          },
+          "Desc": "用户问题",
+          "IsRequired": true
+        }
+      ],
+      "Outputs": [
+        {
+          "Name": "Output",
+          "Type": "OBJECT",
+          "Desc": "知识库问答结果"
+        }
+      ],
+      "NextNodeIDs": [
+        "46bf90b3-a984-418c-bb36-e627f57b80c9"
+      ],
+      "NodeUI": "{\"position\":{\"x\":300,\"y\":200}}",
+      "LLMKnowledgeQANodeData": {
+        "Query": "{{question}}",
+        "ModelName": "Youtu/youtu-mrc-pro",
+        "Filter": "ALL",
+        "DocRecallCount": 5,
+        "DocConfidence": 0.3,
+        "QARecallCount": 3,
+        "QAConfidence": 0.85,
+        "SearchStrategy": {
+          "StrategyType": "MIXING",
+          "TableEnhancement": true
+        },
+        "KnowledgeList": [],
+        "SystemPrompt": "#角色职责\n你是一个专业的客服助手，负责根据知识库内容回答用户问题。\n\n#回答要求\n1. 基于检索到的知识库内容回答\n2. 如果知识库中没有相关信息，明确回复\"未找到答案\"\n3. 回答要准确、简洁、友好\n4. 保持专业的客服语气\n\n#输出格式\n直接输出答案内容，不需要额外说明。"
+      },
+      "ExceptionHandling": {
+        "Switch": "ON",
+        "MaxRetries": "2",
+        "RetryInterval": "1",
+        "AbnormalOutputResult": "抱歉，系统出现异常，请稍后重试",
+        "HandleMethod": "EXCEPTION_OUTPUT",
+        "NextNodeIDs": [],
+        "AbnormalRetrySwitch": "ABNORMAL_RETRY_ON",
+        "Timeout": "60"
+      }
+    },
+    {
+      "NodeID": "46bf90b3-a984-418c-bb36-e627f57b80c9",
+      "NodeName": "判断是否找到答案",
+      "NodeDesc": "判断知识库是否返回了有效答案",
+      "NodeType": "LOGIC_EVALUATOR",
+      "Inputs": [
+        {
+          "Name": "kb_answer",
+          "Type": "STRING",
+          "Input": {
+            "InputType": "REFERENCE_OUTPUT",
+            "Reference": {
+              "NodeID": "3ba63af2-c5d7-41f3-83f1-90cf45b15531",
+              "JsonPath": "Output.Answer"
+            }
+          },
+          "Desc": "知识库返回的答案",
+          "IsRequired": true
+        }
+      ],
+      "Outputs": [
+        {
+          "Name": "Output",
+          "Type": "OBJECT",
+          "Desc": "判断结果"
+        }
+      ],
+      "NextNodeIDs": [],
+      "NodeUI": "{\"position\":{\"x\":500,\"y\":200}}",
+      "LogicEvaluatorNodeData": {
+        "Group": [
+          {
+            "NextNodeIDs": [
+              "105eccf6-cae1-4379-a093-3a6656ba3377"
+            ],
+            "Logical": {
+              "LogicalOperator": "UNSPECIFIED",
+              "Comparison": {
+                "Left": {
+                  "InputType": "REFERENCE_OUTPUT",
+                  "Reference": {
+                    "NodeID": "3ba63af2-c5d7-41f3-83f1-90cf45b15531",
+                    "JsonPath": "Output.Answer"
+                  }
+                },
+                "LeftType": "STRING",
+                "Operator": "EQ",
+                "Right": {
+                  "InputType": "USER_INPUT",
+                  "UserInputValue": {
+                    "Values": [
+                      "未找到答案"
+                    ],
+                    "FileNames": []
+                  }
+                },
+                "MatchType": "SEMANTIC"
+              }
+            }
+          },
+          {
+            "NextNodeIDs": [
+              "665b2928-fa02-4bd5-96e5-391595df1a00"
+            ]
+          }
+        ],
+        "ModelName": "Youtu/youtu-intent-pro",
+        "ModelParams": {}
+      }
+    },
+    {
+      "NodeID": "665b2928-fa02-4bd5-96e5-391595df1a00",
+      "NodeName": "直接回复",
+      "NodeDesc": "知识库找到答案，直接返回",
+      "NodeType": "ANSWER",
+      "Inputs": [
+        {
+          "Name": "answer_content",
+          "Type": "STRING",
+          "Input": {
+            "InputType": "REFERENCE_OUTPUT",
+            "Reference": {
+              "NodeID": "3ba63af2-c5d7-41f3-83f1-90cf45b15531",
+              "JsonPath": "Output.Answer"
+            }
+          },
+          "Desc": "知识库返回的答案",
+          "IsRequired": true
+        }
+      ],
+      "Outputs": [],
+      "NextNodeIDs": [
+        "84b5b39e-e0af-46b6-89d0-a6ebcce6deec"
+      ],
+      "NodeUI": "{\"position\":{\"x\":700,\"y\":100}}",
+      "AnswerNodeData": {
+        "Answer": "{{answer_content}}"
+      }
+    },
+    {
+      "NodeID": "105eccf6-cae1-4379-a093-3a6656ba3377",
+      "NodeName": "深度分析",
+      "NodeDesc": "使用大模型进行深度分析",
+      "NodeType": "LLM",
+      "Inputs": [
+        {
+          "Name": "user_question",
+          "Type": "STRING",
+          "Input": {
+            "InputType": "SYSTEM_VARIABLE",
+            "SystemVariable": {
+              "Name": "SYS.UserQuery",
+              "DialogHistoryLimit": 15
+            }
+          },
+          "Desc": "用户问题",
+          "IsRequired": true
+        }
+      ],
+      "Outputs": [
+        {
+          "Name": "Output",
+          "Type": "OBJECT",
+          "Desc": "分析结果"
+        }
+      ],
+      "NextNodeIDs": [
+        "913387b1-f477-48f8-b4da-75a842500271"
+      ],
+      "NodeUI": "{\"position\":{\"x\":700,\"y\":300}}",
+      "LLMNodeData": {
+        "ModelName": "Deepseek/deepseek-v3.2",
+        "Temperature": 0.7,
+        "TopP": 0.9,
+        "MaxTokens": 2048,
+        "Prompt": "#角色职责\n你是一个专业的客服分析助手，负责对用户问题进行深度分析和理解。\n\n#任务说明\n用户问题：{{user_question}}\n\n知识库中没有找到直接答案，请你：\n1. 分析用户问题的核心诉求\n2. 判断问题的复杂程度\n3. 如果问题较简单，尝试基于常识给出建议性答案\n4. 如果问题复杂或涉及敏感信息，建议转人工处理\n\n#输出要求\n如果可以给出建议：\n- 直接输出建议内容\n- 语气友好专业\n- 说明这是基于常识的建议\n\n如果需要转人工：\n- 明确输出\"需要人工处理\"\n- 简要说明原因",
+        "SystemPrompt": "你是专业的客服分析助手，擅长理解用户需求并提供合理建议。",
+        "OutputFormat": "LLM_OUTPUT_TEXT",
+        "ModelParams": {}
+      },
+      "ExceptionHandling": {
+        "Switch": "ON",
+        "MaxRetries": "3",
+        "RetryInterval": "2",
+        "AbnormalOutputResult": "分析失败，建议转人工处理",
+        "HandleMethod": "EXCEPTION_OUTPUT",
+        "NextNodeIDs": [],
+        "AbnormalRetrySwitch": "ABNORMAL_RETRY_ON",
+        "Timeout": "120"
+      }
+    },
+    {
+      "NodeID": "913387b1-f477-48f8-b4da-75a842500271",
+      "NodeName": "回复分析结果",
+      "NodeDesc": "返回深度分析的结果",
+      "NodeType": "ANSWER",
+      "Inputs": [
+        {
+          "Name": "analysis_result",
+          "Type": "STRING",
+          "Input": {
+            "InputType": "REFERENCE_OUTPUT",
+            "Reference": {
+              "NodeID": "105eccf6-cae1-4379-a093-3a6656ba3377",
+              "JsonPath": "Output.Content"
+            }
+          },
+          "Desc": "分析结果",
+          "IsRequired": true
+        }
+      ],
+      "Outputs": [],
+      "NextNodeIDs": [
+        "84b5b39e-e0af-46b6-89d0-a6ebcce6deec"
+      ],
+      "NodeUI": "{\"position\":{\"x\":900,\"y\":300}}",
+      "AnswerNodeData": {
+        "Answer": "{{analysis_result}}\n\n💡 提示：如需更详细的帮助，可以转接人工客服。"
+      }
+    },
+    {
+      "NodeID": "84b5b39e-e0af-46b6-89d0-a6ebcce6deec",
+      "NodeName": "结束",
+      "NodeDesc": "工作流结束节点",
+      "NodeType": "END",
+      "Inputs": [],
+      "Outputs": [],
+      "NextNodeIDs": [],
+      "NodeUI": "{\"position\":{\"x\":1100,\"y\":200}}",
+      "EndNodeData": {}
+    }
+  ],
+  "Edge": "[{\"source\":\"af0f4d9a-2e56-4cfa-86da-f6f00037917d\",\"sourceHandle\":\"af0f4d9a-2e56-4cfa-86da-f6f00037917d-source\",\"target\":\"3ba63af2-c5d7-41f3-83f1-90cf45b15531\",\"targetHandle\":\"3ba63af2-c5d7-41f3-83f1-90cf45b15531-target\",\"type\":\"custom\",\"id\":\"edge-1\",\"animated\":false},{\"source\":\"3ba63af2-c5d7-41f3-83f1-90cf45b15531\",\"sourceHandle\":\"3ba63af2-c5d7-41f3-83f1-90cf45b15531-source\",\"target\":\"46bf90b3-a984-418c-bb36-e627f57b80c9\",\"targetHandle\":\"46bf90b3-a984-418c-bb36-e627f57b80c9-target\",\"type\":\"custom\",\"id\":\"edge-2\",\"animated\":false},{\"source\":\"46bf90b3-a984-418c-bb36-e627f57b80c9\",\"sourceHandle\":\"46bf90b3-a984-418c-bb36-e627f57b80c9-source-1\",\"target\":\"665b2928-fa02-4bd5-96e5-391595df1a00\",\"targetHandle\":\"665b2928-fa02-4bd5-96e5-391595df1a00-target\",\"type\":\"custom\",\"id\":\"edge-3\",\"animated\":false},{\"source\":\"46bf90b3-a984-418c-bb36-e627f57b80c9\",\"sourceHandle\":\"46bf90b3-a984-418c-bb36-e627f57b80c9-source-2\",\"target\":\"105eccf6-cae1-4379-a093-3a6656ba3377\",\"targetHandle\":\"105eccf6-cae1-4379-a093-3a6656ba3377-target\",\"type\":\"custom\",\"id\":\"edge-4\",\"animated\":false},{\"source\":\"665b2928-fa02-4bd5-96e5-391595df1a00\",\"sourceHandle\":\"665b2928-fa02-4bd5-96e5-391595df1a00-source\",\"target\":\"84b5b39e-e0af-46b6-89d0-a6ebcce6deec\",\"targetHandle\":\"84b5b39e-e0af-46b6-89d0-a6ebcce6deec-target\",\"type\":\"custom\",\"id\":\"edge-5\",\"animated\":false},{\"source\":\"105eccf6-cae1-4379-a093-3a6656ba3377\",\"sourceHandle\":\"105eccf6-cae1-4379-a093-3a6656ba3377-source\",\"target\":\"913387b1-f477-48f8-b4da-75a842500271\",\"targetHandle\":\"913387b1-f477-48f8-b4da-75a842500271-target\",\"type\":\"custom\",\"id\":\"edge-6\",\"animated\":false},{\"source\":\"913387b1-f477-48f8-b4da-75a842500271\",\"sourceHandle\":\"913387b1-f477-48f8-b4da-75a842500271-source\",\"target\":\"84b5b39e-e0af-46b6-89d0-a6ebcce6deec\",\"targetHandle\":\"84b5b39e-e0af-46b6-89d0-a6ebcce6deec-target\",\"type\":\"custom\",\"id\":\"edge-7\",\"animated\":false}]",
+  "Mode": "NORMAL",
+  "ReleaseTime": "",
+  "UpdateTime": "1739502299000"
+}
