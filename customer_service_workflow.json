@@ -1,0 +1,260 @@
+{
+  "ProtoVersion": "V2_6",
+  "WorkflowID": "a8f3c2e9-1b4a-4d2e-9a5c-e7d3f8a9b2c1",
+  "WorkflowName": "智能客服问答路由",
+  "WorkflowDesc": "根据用户问题智能路由到不同的处理流程",
+  "Mode": "NORMAL",
+  "Nodes": [
+    {
+      "NodeID": "start-node-001",
+      "NodeType": "START",
+      "NodeName": "开始",
+      "StartNodeData": {},
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Name": "Output1",
+          "Type": "OBJECT"
+        }
+      ],
+      "NodeUI": {
+        "Position": {
+          "X": 100,
+          "Y": 100
+        }
+      }
+    },
+    {
+      "NodeID": "llm-qa-node-001",
+      "NodeType": "LLM_KNOWLEDGE_QA",
+      "NodeName": "知识库问答",
+      "LLMKnowledgeQANodeData": {
+        "ModelName": "Youtu/youtu-mrc-pro",
+        "SystemPrompt": "你是一个专业的客服助手。请根据知识库内容回答用户问题。如果知识库中没有相关信息，请回复\"需要人工客服\"。",
+        "KnowledgeList": [],
+        "UseAllKnowledge": true,
+        "Temperature": 0.1,
+        "TopP": 0.9
+      },
+      "Inputs": [
+        {
+          "Name": "Query",
+          "Type": "STRING",
+          "Input": {
+            "InputType": "SYSTEM_VARIABLE",
+            "SystemVariable": {
+              "Type": "QUERY"
+            }
+          }
+        }
+      ],
+      "Outputs": [
+        {
+          "Name": "Output1",
+          "Type": "STRING"
+        },
+        {
+          "Name": "Error",
+          "Type": "OBJECT"
+        }
+      ],
+      "NodeUI": {
+        "Position": {
+          "X": 100,
+          "Y": 250
+        }
+      }
+    },
+    {
+      "NodeID": "logic-node-001",
+      "NodeType": "LOGIC_EVALUATOR",
+      "NodeName": "判断是否需要转人工",
+      "LogicEvaluatorNodeData": {
+        "Group": [
+          {
+            "LogicalExpression": [
+              {
+                "Left": {
+                  "InputType": "REFERENCE_OUTPUT",
+                  "Reference": {
+                    "NodeID": "llm-qa-node-001",
+                    "OutputName": "Output1"
+                  }
+                },
+                "Operator": "CONTAINS",
+                "Right": {
+                  "InputType": "USER_INPUT",
+                  "UserInputValue": {
+                    "Text": "需要人工客服"
+                  }
+                },
+                "MatchType": "SEMANTIC_MATCH"
+              }
+            ]
+          }
+        ],
+        "ModelName": "Youtu/youtu-intent-pro"
+      },
+      "Inputs": [
+        {
+          "Name": "Input1",
+          "Type": "STRING",
+          "Input": {
+            "InputType": "REFERENCE_OUTPUT",
+            "Reference": {
+              "NodeID": "llm-qa-node-001",
+              "OutputName": "Output1"
+            }
+          }
+        }
+      ],
+      "Outputs": [
+        {
+          "Name": "Output1",
+          "Type": "BOOLEAN"
+        },
+        {
+          "Name": "Error",
+          "Type": "OBJECT"
+        }
+      ],
+      "NodeUI": {
+        "Position": {
+          "X": 100,
+          "Y": 400
+        }
+      }
+    },
+    {
+      "NodeID": "llm-node-001",
+      "NodeType": "LLM",
+      "NodeName": "智能分析与建议",
+      "LLMNodeData": {
+        "ModelName": "Deepseek/deepseek-v3.2",
+        "SystemPrompt": "你是一个资深的客服专家。请分析用户的问题，提供详细的解决方案和建议。回复要专业、友好、具体。",
+        "UserPrompt": "用户问题：{{Query}}\n\n请提供详细的解决方案。",
+        "Temperature": 0.7,
+        "TopP": 0.95,
+        "MaxTokens": 2000
+      },
+      "Inputs": [
+        {
+          "Name": "Query",
+          "Type": "STRING",
+          "Input": {
+            "InputType": "SYSTEM_VARIABLE",
+            "SystemVariable": {
+              "Type": "QUERY"
+            }
+          }
+        }
+      ],
+      "Outputs": [
+        {
+          "Name": "Output1",
+          "Type": "STRING"
+        },
+        {
+          "Name": "Error",
+          "Type": "OBJECT"
+        }
+      ],
+      "NodeUI": {
+        "Position": {
+          "X": 300,
+          "Y": 550
+        }
+      }
+    },
+    {
+      "NodeID": "answer-node-001",
+      "NodeType": "ANSWER",
+      "NodeName": "智能回复",
+      "AnswerNodeData": {
+        "Answer": "{{Output1}}",
+        "AnswerSource": "LLM"
+      },
+      "Inputs": [
+        {
+          "Name": "Output1",
+          "Type": "STRING",
+          "Input": {
+            "InputType": "REFERENCE_OUTPUT",
+            "Reference": {
+              "NodeID": "llm-node-001",
+              "OutputName": "Output1"
+            }
+          }
+        }
+      ],
+      "Outputs": [],
+      "NodeUI": {
+        "Position": {
+          "X": 300,
+          "Y": 700
+        }
+      }
+    },
+    {
+      "NodeID": "answer-node-002",
+      "NodeType": "ANSWER",
+      "NodeName": "提示转人工",
+      "AnswerNodeData": {
+        "Answer": "您的问题比较复杂，我已为您转接人工客服。请稍候，客服人员会尽快为您服务。\n\n您也可以拨打客服热线：400-XXX-XXXX（工作时间：9:00-18:00）",
+        "AnswerSource": "FIXED"
+      },
+      "Inputs": [],
+      "Outputs": [],
+      "NodeUI": {
+        "Position": {
+          "X": -100,
+          "Y": 550
+        }
+      }
+    },
+    {
+      "NodeID": "answer-node-003",
+      "NodeType": "ANSWER",
+      "NodeName": "知识库直接回复",
+      "AnswerNodeData": {
+        "Answer": "{{Output1}}",
+        "AnswerSource": "KNOWLEDGE"
+      },
+      "Inputs": [
+        {
+          "Name": "Output1",
+          "Type": "STRING",
+          "Input": {
+            "InputType": "REFERENCE_OUTPUT",
+            "Reference": {
+              "NodeID": "llm-qa-node-001",
+              "OutputName": "Output1"
+            }
+          }
+        }
+      ],
+      "Outputs": [],
+      "NodeUI": {
+        "Position": {
+          "X": 500,
+          "Y": 400
+        }
+      }
+    },
+    {
+      "NodeID": "end-node-001",
+      "NodeType": "END",
+      "NodeName": "结束",
+      "EndNodeData": {},
+      "Inputs": [],
+      "Outputs": [],
+      "NodeUI": {
+        "Position": {
+          "X": 300,
+          "Y": 850
+        }
+      }
+    }
+  ],
+  "Edge": "{\"edges\":[{\"source\":\"start-node-001\",\"target\":\"llm-qa-node-001\"},{\"source\":\"llm-qa-node-001\",\"target\":\"logic-node-001\"},{\"source\":\"logic-node-001\",\"target\":\"llm-node-001\",\"condition\":\"true\"},{\"source\":\"logic-node-001\",\"target\":\"answer-node-003\",\"condition\":\"false\"},{\"source\":\"llm-node-001\",\"target\":\"answer-node-001\"},{\"source\":\"answer-node-001\",\"target\":\"end-node-001\"},{\"source\":\"answer-node-002\",\"target\":\"end-node-001\"},{\"source\":\"answer-node-003\",\"target\":\"end-node-001\"}]}"
+}
